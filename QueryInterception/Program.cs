@@ -7,57 +7,63 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-using (var context = new CustomerContext())
+public class QueryInterception
 {
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
-
-    context.AddRange(
-        new Customer
+    public static void Example()
+    {
+        using (var context = new CustomerContext())
         {
-            Name = "Alice",
-            PhoneNumber = "+1 515 555 0123",
-            City = "Ames"
-        },
-        new Customer
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
+
+            context.AddRange(
+                new Customer
+                {
+                    Name = "Alice",
+                    PhoneNumber = "+1 515 555 0123",
+                    City = "Ames"
+                },
+                new Customer
+                {
+                    Name = "Mac",
+                    PhoneNumber = "+1 515 555 0124",
+                    City = "Ames"
+                },
+                new Customer { Name = "Toast" },
+                new Customer { Name = "Baxter" });
+
+            context.SaveChanges();
+        }
+
+        foreach (var customer in GetPageOfCustomers("City", 0))
         {
-            Name = "Mac",
-            PhoneNumber = "+1 515 555 0124",
-            City = "Ames"
-        },
-        new Customer { Name = "Toast" },
-        new Customer { Name = "Baxter" });
+            Console.WriteLine($"{customer.Name}");
+        }
 
-    context.SaveChanges();
-}
+        List<Customer> GetPageOfCustomers(string sortProperty, int page)
+        {
+            using var context = new CustomerContext();
 
-foreach (var customer in GetPageOfCustomers("City", 0))
-{
-    Console.WriteLine($"{customer.Name}");
-}
+            return context.Customers
+                .OrderBy(e => EF.Property<object>(e, sortProperty))
+                .Skip(page * 20).Take(20).ToList();
+        }
 
-List<Customer> GetPageOfCustomers(string sortProperty, int page)
-{
-    using var context = new CustomerContext();
+        foreach (var customer in GetPageOfCustomers2("City", 0))
+        {
+            Console.WriteLine($"{customer.Name}");
+        }
 
-    return context.Customers
-        .OrderBy(e => EF.Property<object>(e, sortProperty))
-        .Skip(page * 20).Take(20).ToList();
-}
+        List<Customer> GetPageOfCustomers2(string sortProperty, int page)
+        {
+            using var context = new CustomerContext();
 
-foreach (var customer in GetPageOfCustomers2("City", 0))
-{
-    Console.WriteLine($"{customer.Name}");
-}
-
-List<Customer> GetPageOfCustomers2(string sortProperty, int page)
-{
-    using var context = new CustomerContext();
-
-    return context.Customers
-        .OrderBy(e => EF.Property<object>(e, sortProperty))
-        .ThenBy(e => e.Id)
-        .Skip(page * 20).Take(20).ToList();
+            return context.Customers
+                .OrderBy(e => EF.Property<object>(e, sortProperty))
+                .ThenBy(e => e.Id)
+                .Skip(page * 20).Take(20).ToList();
+        }
+    }
 }
 
 public class CustomerContext : DbContext
@@ -67,10 +73,12 @@ public class CustomerContext : DbContext
     public DbSet<Customer> Customers
         => Set<Customer>();
 
+    string connectionString = @"Server=localhost,1433;Initial Catalog=Customers;Integrated Security=False;User Id=sa;Password=7BPi669DRdhDf9Xaddfj;Encrypt=False;";
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder
             .AddInterceptors(_keyOrderingExpressionInterceptor)
-            .UseSqlite("Data Source = customers.db")
+            .UseSqlServer(connectionString)
             .LogTo(Console.WriteLine, LogLevel.Information);
 }
 

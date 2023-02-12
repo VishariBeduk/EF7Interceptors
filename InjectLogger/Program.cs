@@ -8,34 +8,42 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole(); });
-
-var serviceProvider = new ServiceCollection()
-    .AddDbContext<CustomerContext>(
-        b => b.UseLoggerFactory(loggerFactory)
-            .UseSqlite("Data Source = customers.db"))
-    .BuildServiceProvider();
-
-using (var scope = serviceProvider.CreateScope())
+public class InjectLogger
 {
-    var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
+    public static void Example()
+    {
+        var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole(); });
 
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
+        string connectionString = @"Server=localhost,1433;Initial Catalog=Customers;Integrated Security=False;User Id=sa;Password=7BPi669DRdhDf9Xaddfj;Encrypt=False;";
 
-    context.AddRange(
-        new Customer { Name = "Alice", PhoneNumber = "+1 515 555 0123" },
-        new Customer { Name = "Mac", PhoneNumber = "+1 515 555 0124" });
+        var serviceProvider = new ServiceCollection()
+            .AddDbContext<CustomerContext>(
+                b => b.UseLoggerFactory(loggerFactory)
+                    .UseSqlServer(connectionString))
+            .BuildServiceProvider();
 
-    context.SaveChanges();
-}
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
 
-using (var scope = serviceProvider.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
 
-    var customer = context.Customers.Single(e => e.Name == "Alice");
-    customer.PhoneNumber = "+1 515 555 0125";
+            context.AddRange(
+                new Customer { Name = "Alice", PhoneNumber = "+1 515 555 0123" },
+                new Customer { Name = "Mac", PhoneNumber = "+1 515 555 0124" });
+
+            context.SaveChanges();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
+
+            var customer = context.Customers.Single(e => e.Name == "Alice");
+            customer.PhoneNumber = "+1 515 555 0125";
+        }
+    }
 }
 
 public class CustomerContext : DbContext

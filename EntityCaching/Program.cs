@@ -6,35 +6,39 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-using (var context = new CustomerContext())
+public class EntityCaching
 {
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
-
-    context.AddRange(
-        new Customer
-        {
-            Id = 1,
-            Name = "Alice",
-            PhoneNumber = "515 555 0123",
-            Country = context.Countries.Find("United States")!
-        },
-        new Customer
-        {
-            Id = 5,
-            Name = "Mac",
-            PhoneNumber = "515 555 0124",
-            Country = context.Countries.Find("United Kingdom")!
-        });
-
-    context.SaveChanges();
-}
-
-using (var context = new CustomerContext())
-{
-    foreach (var customer in context.Customers.Include(e => e.Country))
+    public static void Example()
     {
-        Console.WriteLine($"Customer '{customer.Name}' in Country '{customer.Country.Name}'");
+        using (var context = new CustomerContext())
+        {
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
+
+            context.AddRange(
+                new Customer
+                {
+                    Name = "Alice",
+                    PhoneNumber = "515 555 0123",
+                    Country = context.Countries.Find("United States")!
+                },
+                new Customer
+                {
+                    Name = "Mac",
+                    PhoneNumber = "515 555 0124",
+                    Country = context.Countries.Find("United Kingdom")!
+                });
+
+            context.SaveChanges();
+        }
+
+        using (var context = new CustomerContext())
+        {
+            foreach (var customer in context.Customers.Include(e => e.Country))
+            {
+                Console.WriteLine($"Customer '{customer.Name}' in Country '{customer.Country.Name}'");
+            }
+        }
     }
 }
 
@@ -317,9 +321,11 @@ public class CustomerContext : DbContext
 
     public DbSet<Country> Countries => Set<Country>();
 
+    string connectionString = @"Server=localhost,1433;Initial Catalog=Customers;Integrated Security=False;User Id=sa;Password=7BPi669DRdhDf9Xaddfj;Encrypt=False;";
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) => optionsBuilder
             .AddInterceptors(_countriesCachingInterceptor)
-            .UseSqlite("Data Source = customers.db");
+            .UseSqlServer(connectionString);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder.Entity<Country>().HasData(AllCountries);
 }
@@ -334,6 +340,12 @@ public class Customer
 
 public sealed class Country
 {
+    public Country()
+    {
+        Name = string.Empty;
+        DialingCodes = string.Empty;
+    }
+
     public Country(string name, string dialingCodes)
     {
         Name = name;

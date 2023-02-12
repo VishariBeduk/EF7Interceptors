@@ -5,31 +5,37 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-using (var context = new CustomerContext())
+public class OptimisticConcurrencyInterception
 {
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
-
-    context.AddRange(
-        new Customer { Name = "Bill" },
-        new Customer { Name = "Bob" });
-
-    context.SaveChanges();
-}
-
-using (var context1 = new CustomerContext())
-{
-    var customer1 = context1.Customers.Single(e => e.Name == "Bill");
-
-    using (var context2 = new CustomerContext())
+    public static void Example()
     {
-        var customer2 = context1.Customers.Single(e => e.Name == "Bill");
-        context2.Entry(customer2).State = EntityState.Deleted;
-        context2.SaveChanges();
-    }
+        using (var context = new CustomerContext())
+        {
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
 
-    context1.Entry(customer1).State = EntityState.Deleted;
-    context1.SaveChanges();
+            context.AddRange(
+                new Customer { Name = "Bill" },
+                new Customer { Name = "Bob" });
+
+            context.SaveChanges();
+        }
+
+        using (var context1 = new CustomerContext())
+        {
+            var customer1 = context1.Customers.Single(e => e.Name == "Bill");
+
+            using (var context2 = new CustomerContext())
+            {
+                var customer2 = context1.Customers.Single(e => e.Name == "Bill");
+                context2.Entry(customer2).State = EntityState.Deleted;
+                context2.SaveChanges();
+            }
+
+            context1.Entry(customer1).State = EntityState.Deleted;
+            context1.SaveChanges();
+        }
+    }
 }
 
 public class CustomerContext : DbContext
@@ -39,10 +45,12 @@ public class CustomerContext : DbContext
     public DbSet<Customer> Customers
         => Set<Customer>();
 
+    string connectionString = @"Server=localhost,1433;Initial Catalog=Customers;Integrated Security=False;User Id=sa;Password=7BPi669DRdhDf9Xaddfj;Encrypt=False;";
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder
             .AddInterceptors(_concurrencyInterceptor)
-            .UseSqlite("Data Source = customers.db")
+            .UseSqlServer(connectionString)
             .LogTo(Console.WriteLine, LogLevel.Information);
 }
 

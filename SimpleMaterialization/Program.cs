@@ -5,22 +5,28 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-using (var context = new CustomerContext())
+public class SimpleMaterialization
 {
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
+    public static void Example()
+    {
+        using (var context = new CustomerContext())
+        {
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
 
-    context.AddRange(
-        new Customer { Name = "Alice", PhoneNumber = "+1 515 555 0123" },
-        new Customer { Name = "Mac", PhoneNumber = "+1 515 555 0124" });
+            context.AddRange(
+                new Customer { Name = "Alice", PhoneNumber = "+1 515 555 0123" },
+                new Customer { Name = "Mac", PhoneNumber = "+1 515 555 0124" });
 
-    context.SaveChanges();
-}
+            context.SaveChanges();
+        }
 
-using (var context = new CustomerContext())
-{
-    var customer = context.Customers.Single(e => e.Name == "Alice");
-    Console.WriteLine($"Customer '{customer.Name}' was retrieved at '{customer.Retrieved.ToLocalTime()}'");
+        using (var context = new CustomerContext())
+        {
+            var customer = context.Customers.Single(e => e.Name == "Alice");
+            Console.WriteLine($"Customer '{customer.Name}' was retrieved at '{customer.Retrieved.ToLocalTime()}'");
+        }
+    }
 }
 
 public class CustomerContext : DbContext
@@ -30,10 +36,12 @@ public class CustomerContext : DbContext
     public DbSet<Customer> Customers
         => Set<Customer>();
 
+    string connectionString = @"Server=localhost,1433;Initial Catalog=Customers;Integrated Security=False;User Id=sa;Password=7BPi669DRdhDf9Xaddfj;Encrypt=False;";
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder
             .AddInterceptors(_setRetrievedInterceptor)
-            .UseSqlite("Data Source = customers.db");
+            .UseSqlServer(connectionString);
 }
 
 public class SetRetrievedInterceptor : IMaterializationInterceptor
